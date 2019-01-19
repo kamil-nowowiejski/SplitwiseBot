@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SplitwiseBot.BotState;
+using SplitwiseBot.Infrastructure;
 using SplitwiseBot.SplitwiseClient;
 
 namespace SplitwiseBot.Controllers

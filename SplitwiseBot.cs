@@ -10,9 +10,10 @@ using Microsoft.Bot.Builder;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using SplitwiseBot.BotState;
+using SplitwiseBot.BotActions;
 using SplitwiseBot.Constants;
 using SplitwiseBot.Exceptions;
+using SplitwiseBot.Infrastructure;
 using SplitwiseBot.SplitwiseClient;
 using SplitwiseBot.SplitwiseClient.Dto;
 
@@ -31,16 +32,15 @@ namespace SplitwiseBot
 	/// <seealso cref="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-2.1"/>
 	internal class SplitwiseBot : IBot
 	{
-		private readonly SplitwiseClientBuilder _splitwiseClientBuilder;
-		private readonly IConfiguration _configuration;
 		private readonly ILogger _logger;
 		private readonly UsersRegistry _usersRegistry;
+		private readonly BotActionsRegistry _botActionsRegistry;
+
 
 		public SplitwiseBot( 
 			ILoggerFactory loggerFactory,			 
-			UsersRegistry usersRegistry, 
-			SplitwiseClientBuilder splitwiseClientBuilder,
-			IConfiguration configuration)
+			UsersRegistry usersRegistry,
+			BotActionsRegistry botActionsRegistry)
 		{
 			if (loggerFactory == null)
 			{
@@ -48,9 +48,7 @@ namespace SplitwiseBot
 			}
 			
 			_usersRegistry = usersRegistry;
-			_splitwiseClientBuilder = splitwiseClientBuilder;
-			_configuration = configuration;
-
+			_botActionsRegistry = botActionsRegistry;
 			_logger = loggerFactory.CreateLogger<SplitwiseBot>();
 			_logger.LogTrace("Turn start.");
 		}
@@ -77,103 +75,28 @@ namespace SplitwiseBot
 
 			string userId = turnContext.Activity.From.Id;
 			var reply = turnContext.Activity.CreateReply();
+			var userMessage = turnContext.Activity.Text;
 
-			if (_usersRegistry.IsUserRegistered(userId))
-			{
-				Action action = FindActionToExecute(turnContext.Activity.Text, userId, reply);
-				TryExecutingAction(action, userId, reply);
-			}
-			else
-			{
-				Authenticate(userId, reply);
-			}
+			BotAction action;
 
-			await turnContext.SendActivityAsync(reply, cancellationToken);
-		}
-
-		private Action FindActionToExecute(string message, string userId, Activity reply)
-		{
-			switch (message.ToLower())
-			{
-				case "list":
-					return () => PrepareReplyForMostIndebtedGroupMembers(userId, reply, _configuration[ConfigurationKeys.GroupName]);
-
-				default:
-					return () => ShowHelp(message, reply);
-			}
-		}
-
-		private void ShowHelp(string message, Activity reply)
-		{
-			reply.Text = $"Command \"{message}\" is unknown.{Environment.NewLine}" +
-			             $"Only supported comment right now is: \"list\"";
-		}
-
-		private void TryExecutingAction(Action action, string userId, Activity reply)
-		{
 			try
 			{
-				action();
+				action = _botActionsRegistry.GetAction(userMessage);
+				action.PerformAction(userId, reply, userMessage);
 			}
 			catch (UserNotAuthenticatedException)
 			{
-				Authenticate(userId, reply);
+				action = _botActionsRegistry.GetAction(BotActionCommand.Authenticate);
+				action.PerformAction(userId, reply, userMessage);
 			}
-		}
-
-		private void Authenticate(string userId, Activity reply)
-		{
-			var oAuthClient = _splitwiseClientBuilder.BuildOAuthClient();
-			(string requestToken, string requestTokenSecret) = oAuthClient.GetRequestToken();
-
-			_usersRegistry.SaveRequestToken(userId, requestToken, requestTokenSecret);
-
-			string authorizationUrl = oAuthClient.GetAuthorizationUrl(requestToken);
-
-			var singinCard = CreateSinginCard(authorizationUrl);
-			reply.Attachments.Add(singinCard.ToAttachment());
-		}
-
-		private SigninCard CreateSinginCard(string authorizationUrl)
-		{
-			var cardAction = new CardAction()
+			catch (UnknownCommandException e)
 			{
-				Type = "signin",
-				Value = authorizationUrl,
-				Title = "Sign in to Splitwise"
-			};
+				action = _botActionsRegistry.GetAction(BotActionCommand.Help);
+				action.PerformAction(userId, reply, e.Command);
+			}
 
-			return new SigninCard(string.Empty, new List<CardAction>() { cardAction });
-		}
 
-		private void PrepareReplyForMostIndebtedGroupMembers(string userId, Activity reply, string splitwiseGroupName)
-		{
-			var mostIndeptMemebers = GetMostIndebtedGroupMembers(userId, splitwiseGroupName);
-			var textSummaryCollection = mostIndeptMemebers
-				.Select(m => $"{m.FirstName} {m.LastName}: {GetBalanceForLocalCurrency(m).Amount}");
-
-			reply.Text = string.Join(Environment.NewLine, textSummaryCollection);
-		}
-
-		private IOrderedEnumerable<MemberDto> GetMostIndebtedGroupMembers(string userId, string splitwiseGroupName)
-		{
-			var client = CreateSplitwiseClient(userId);
-			List<GroupDto> groupDtos = client.GetGroups();
-
-			var selectedGroup = groupDtos.Single(g => g.Name == splitwiseGroupName);
-
-			return selectedGroup.Members.OrderBy(m => GetBalanceForLocalCurrency(m).Amount);
-		}
-
-		private BalanceDto GetBalanceForLocalCurrency(MemberDto member)
-		{
-			return member.Balance.Single(b => b.CurrencyCode == _configuration[ConfigurationKeys.LocalCurrencyCode]);
-		}
-
-		private SplitwiseClient.SplitwiseClient CreateSplitwiseClient(string userId)
-		{
-			(string accessToken, string accessTokenSecret) = _usersRegistry.GetAccessTokenWithSecret(userId);
-			return _splitwiseClientBuilder.Build(accessToken, accessTokenSecret);
+			await turnContext.SendActivityAsync(reply, cancellationToken);
 		}
 	}
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -12,9 +13,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SplitwiseBot.BotState;
+using SplitwiseBot.BotActions;
 using SplitwiseBot.Constants;
 using SplitwiseBot.Controllers;
+using SplitwiseBot.Infrastructure;
 using SplitwiseBot.SplitwiseClient;
 
 namespace SplitwiseBot
@@ -35,7 +37,7 @@ namespace SplitwiseBot
 					.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
 					.AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
 					.AddEnvironmentVariables();
-
+			
 			Configuration = builder.Build();
 		}
 
@@ -55,6 +57,9 @@ namespace SplitwiseBot
 			services.AddSingleton(options => CreateSplitWiseClientBuilder());
 			services.AddSingleton<OAuthController>();
 			services.AddSingleton<UsersRegistry>();
+			BotActionsMapper.RegisterActions(services);
+			services.AddSingleton(provider => BotActionsMapper.CreateMap(services));
+			services.AddSingleton<BotActionsRegistry>();
 		}
 
 		private SplitwiseClientBuilder CreateSplitWiseClientBuilder()

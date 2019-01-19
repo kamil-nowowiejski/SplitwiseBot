@@ -1,4 +1,4 @@
-﻿namespace SplitwiseBot.BotState
+﻿namespace SplitwiseBot.Entities
 {
 	public class User
 	{

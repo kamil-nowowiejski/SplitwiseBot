@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using SplitwiseBot.Entities;
 
-namespace SplitwiseBot.BotState
+namespace SplitwiseBot.Infrastructure
 {
 	public class UsersRegistry
 	{
