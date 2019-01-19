@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Authentication;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
@@ -13,6 +12,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SplitwiseBot.BotState;
 using SplitwiseBot.Constants;
+using SplitwiseBot.Exceptions;
 using SplitwiseBot.SplitwiseClient;
 using SplitwiseBot.SplitwiseClient.Dto;
 
@@ -80,24 +80,45 @@ namespace SplitwiseBot
 
 			if (_usersRegistry.IsUserRegistered(userId))
 			{
-				try
-				{
-					PrepareReplyForMostIndebtedGroupMembers(userId, reply, _configuration[ConfigurationKeys.GroupName]);
-				}
-				catch (AuthenticationException)
-				{
-					Authenticate(userId, reply);
-				}
+				Action action = FindActionToExecute(turnContext.Activity.Text, userId, reply);
+				TryExecutingAction(action, userId, reply);
 			}
 			else
 			{
 				Authenticate(userId, reply);
 			}
 
-			
-
-
 			await turnContext.SendActivityAsync(reply, cancellationToken);
+		}
+
+		private Action FindActionToExecute(string message, string userId, Activity reply)
+		{
+			switch (message.ToLower())
+			{
+				case "list":
+					return () => PrepareReplyForMostIndebtedGroupMembers(userId, reply, _configuration[ConfigurationKeys.GroupName]);
+
+				default:
+					return () => ShowHelp(message, reply);
+			}
+		}
+
+		private void ShowHelp(string message, Activity reply)
+		{
+			reply.Text = $"Command \"{message}\" is unknown.{Environment.NewLine}" +
+			             $"Only supported comment right now is: \"list\"";
+		}
+
+		private void TryExecutingAction(Action action, string userId, Activity reply)
+		{
+			try
+			{
+				action();
+			}
+			catch (UserNotAuthenticatedException)
+			{
+				Authenticate(userId, reply);
+			}
 		}
 
 		private void Authenticate(string userId, Activity reply)

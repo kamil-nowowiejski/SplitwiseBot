@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Net;
-using System.Security.Authentication;
 using Newtonsoft.Json;
 using RestSharp;
 using RestSharp.Authenticators;
+using SplitwiseBot.Exceptions;
 using SplitwiseBot.SplitwiseClient.Dto;
 
 namespace SplitwiseBot.SplitwiseClient
@@ -38,7 +38,7 @@ namespace SplitwiseBot.SplitwiseClient
 			var response = _restClient.Execute(request);
 			if (!response.IsSuccessful && response.StatusCode == HttpStatusCode.Unauthorized)
 			{
-				throw new AuthenticationException();
+				throw new UserNotAuthenticatedException();
 			}
 
 			return response;
