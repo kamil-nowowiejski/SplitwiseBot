@@ -35,7 +35,7 @@ namespace SplitwiseBot.BotActions
 			var textSummaryCollection = mostIndeptMemebers
 				.Select(m => $"{m.FirstName} {m.LastName}: {GetBalanceForLocalCurrency(m).Amount}");
 
-			reply.Text = string.Join(Environment.NewLine, textSummaryCollection);
+			reply.Text = string.Join("\n\n", textSummaryCollection);
 		}
 
 		private IOrderedEnumerable<MemberDto> GetMostIndebtedGroupMembers(string userId, string splitwiseGroupName)
