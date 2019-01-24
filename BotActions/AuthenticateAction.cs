@@ -23,19 +23,20 @@ namespace SplitwiseBot.BotActions
 			string authorizationUrl = oAuthClient.GetAuthorizationUrl(requestToken);
 
 			var singinCard = CreateSinginCard(authorizationUrl);
+			
 			reply.Attachments.Add(singinCard.ToAttachment());
 		}
 
-		private SigninCard CreateSinginCard(string authorizationUrl)
+		private HeroCard CreateSinginCard(string authorizationUrl)
 		{
 			var cardAction = new CardAction()
 			{
-				Type = "signin",
+				Type = "openUrl",
 				Value = authorizationUrl,
 				Title = "Sign in to Splitwise"
 			};
 
-			return new SigninCard(string.Empty, new List<CardAction>() { cardAction });
+			return new HeroCard(string.Empty, buttons: new List<CardAction>() { cardAction });
 		}
 	}
 }
