@@ -75,19 +75,19 @@ namespace SplitwiseBot
 
 			string userId = turnContext.Activity.From.Id;
 			var reply = turnContext.Activity.CreateReply();
-			var userMessage = turnContext.Activity.Text;
+			var botCommand = GetCommand(turnContext.Activity);
 
 			BotAction action;
 
 			try
 			{
-				action = _botActionsRegistry.GetAction(userMessage);
-				action.PerformAction(userId, reply, userMessage);
+				action = _botActionsRegistry.GetAction(botCommand);
+				action.PerformAction(userId, reply, botCommand);
 			}
 			catch (UserNotAuthenticatedException)
 			{
 				action = _botActionsRegistry.GetAction(BotActionCommand.Authenticate);
-				action.PerformAction(userId, reply, userMessage);
+				action.PerformAction(userId, reply, botCommand);
 			}
 			catch (UnknownCommandException e)
 			{
@@ -97,6 +97,11 @@ namespace SplitwiseBot
 
 
 			await turnContext.SendActivityAsync(reply, cancellationToken);
+		}
+
+		private string GetCommand(Activity activity)
+		{
+			return activity.RemoveRecipientMention().Trim();
 		}
 	}
 }
