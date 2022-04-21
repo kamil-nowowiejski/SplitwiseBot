@@ -33,7 +33,7 @@ namespace SplitwiseBot.BotActions
 		{
 			var mostIndeptMemebers = GetMostIndebtedGroupMembers(userId, splitwiseGroupName);
 			var textSummaryCollection = mostIndeptMemebers
-				.Select(m => $"{m.FirstName} {m.LastName}: {GetBalanceForLocalCurrency(m).Amount}");
+				.Select(m => $"{m.FirstName} {m.LastName}: {GetBalanceForAmountLocalCurrency(m)}");
 
 			reply.Text = string.Join("\n\n", textSummaryCollection);
 		}
@@ -45,12 +45,14 @@ namespace SplitwiseBot.BotActions
 
 			var selectedGroup = groupDtos.Single(g => g.Name == splitwiseGroupName);
 
-			return selectedGroup.Members.OrderBy(m => GetBalanceForLocalCurrency(m).Amount);
+			return selectedGroup.Members.OrderBy(m => GetBalanceForAmountLocalCurrency(m));
 		}
 
-		private BalanceDto GetBalanceForLocalCurrency(MemberDto member)
+		private double GetBalanceForAmountLocalCurrency(MemberDto member)
 		{
-			return member.Balance.Single(b => b.CurrencyCode == _configuration[ConfigurationKeys.LocalCurrencyCode]);
-		}
+			var balanceDto =  member.Balance
+        .SingleOrDefault(b => b.CurrencyCode == _configuration[ConfigurationKeys.LocalCurrencyCode]);
+      return balanceDto?.Amount ?? 0;
+    }
 	}
 }
